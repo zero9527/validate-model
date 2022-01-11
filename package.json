@@ -9,6 +9,7 @@
     "url": "https://github.com/zero9527/validate-model"
   },
   "scripts": {
+    "example": "cd _example && yarn dev",
     "build": "rollup -c",
     "dev": "rollup -c -w",
     "test": "node ./__test/index.js",

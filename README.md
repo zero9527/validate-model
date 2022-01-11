@@ -116,7 +116,7 @@ const currentKeyModel: CurrentKeyModel = {
 /**
  * 字段校验规则
  */
-export const validateModel = createValidateModel<CurrentKeyModel>(currentKeyModel, ['phone']);
+export const validateModel = createValidateModel(currentKeyModel, ['phone']);
 ```
 
 ### 使用自定义 model

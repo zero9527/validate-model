@@ -8,7 +8,14 @@ export const baseKeyModel: BaseKeyModel = {
   phone: {
     errorText: '请输入正确的手机号',
     validate(value) {
-      if (!checkPhone(`${value}`)) return false;
+      if (!value) {
+        this.errorText = '不能为空';
+        return false;
+      }
+      if (!checkPhone(`${value}`)) {
+        this.errorText = '请输入正确的手机号';
+        return false;
+      }
       return true;
     },
   },
