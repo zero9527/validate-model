@@ -4,7 +4,7 @@
 
 ## 前言
 
-form 表单的字段校验流程化，我就这么写
+form 表单的字段校验流程化，我是这么写的
 
 ## 下载
 
@@ -12,22 +12,26 @@ form 表单的字段校验流程化，我就这么写
 npm i @zr/validate-model
 ```
 
-## 看看用法
-
-在开始前先了解下，
-
-- 内置了常用的字段校验规则如`phone`/`email`等
-- 提供了字段校验规则类型 `BaseModel<V>`
-- 自定义 model 的实现应按照 `BaseModel<V>`
-- 内置的字段校验可以被覆盖
+## 用法
 
 ### 前置
+
+- 内置了常用的字段校验规则如`phone`/`email`等
+
+- 提供了字段校验规则类型 `BaseModel<V>`
+
+- 自定义 model 的实现应按照 `BaseModel<V>`
+
+- 字段校验需要用到其他数据的时候，使用好 `BaseModel<V>` 的泛型 `V`，在 `validate` 方法就会有 `typescript` 的类型提示了
+
+- 如果自定义的字段规则与引入的内部字段重复了，将会使用自定义的字段规则
 
 - 字段校验的实现类型 `BaseModel`
   - `errorText` 即错误信息，可以在不同的校验规则下设置错误信息
   - `validate()` 方法返回一个布尔值：是否通过校验
+  > `validate()` 方法建议**不要**使用箭头函数实现，如果内部需要根据不同情况设置`errorText`的话
 
-> `validate()` 方法建议**不要**使用箭头函数实现，如果内部需要根据不同情况设置`errorText`的话
+> TODO: 类型提示截图
 
 ```ts
 /**
@@ -41,53 +45,72 @@ export type BaseModel<V = any> = {
 
 - 内置的字段校验 `baseKeyModel`
 
-提供常用的字段校验如 `phone`/`email` 等，自定义 model 可参考如下列出`phone`的校验规则实现（更多的往下翻翻）
+提供常用的字段校验如 `phone`/`email` 等（具体实现可以看目录 **内置的字段与校验规则**）
 
 ```ts
-// src\model\baseKeyModel.ts
-import { checkPhone, checkEmail } from '../utils/index';
-import { BaseKeyModel } from '../types/index';
-
-/**
- * 内置的基础校验规则
- */
-export const baseKeyModel: BaseKeyModel = {
-  phone: {
-    errorText: '请输入正确的手机号',
-    validate(value) {
-      if (!checkPhone(`${value}`)) return false;
-      return true;
-    },
-  },
-  // ...
+// 字段对应校验model
+export type BaseKeyModel = {
+  phone: BaseModel<number>;
+  email: BaseModel<string>;
 };
 ```
 
 ### 新建自定义 model
 
-- 基于 `BaseModel` 定义当前的字段规则（`currentKeyModel`）
-- 使用 `createValidateModel` 方法创建自定义 model
-- 将 `currentKeyModel` 作为第一个参数，第二个参数可以指定需要用的内置字段校验 model
-- `createValidateModel` 方法的返回值即包含**当前字段与指定内置字段**的校验规则的一个对象，暴露出去给外面使用
+- 基于 `BaseModel` 定义当前的字段规则（`currentKeyModel`）；
+  > `validate` 方法的参数定义好后，校验规则也可以自己实现，不管是本身内容的校验（**只传这个字段的值**），还是需要根据其他字段的多种校验（**传对象把所需要的其他数据与这个字段的值一起传入**），`value` 参数有 `typescript` 的类型提示
+
+- 使用 `createValidateModel(currentKeyModel, ['phone', 'email'])` 方法创建自定义 model，其中：
+  - 第一个参数 `currentKeyModel` 为自定义字段校验规则
+  - 第二个参数 `['phone', 'email']` 为指定需要用的内置字段校验 model(有ts类型提示可以友好的食用)
+  - 如下示例中，`validateModel` 可用的字段校验有 `name`/`address`/`phone`/`email`
+
+- 调用字段的校验规则
+  ```ts
+  const validator = validateModel.name;
+  const result = validator.validate(value);
+  ``` 
+  `result` 即校验结果，然后 `validatorName.errorText` 可以知道具体的错误信息（自定义model需要自行设置）
+
 
 ```ts
+// _example/src/components/FormData1/useValidateModel.ts
 import { BaseModel, createValidateModel } from '@zr/validate-model';
 
-type AddressValue = {
+export type AddressValue = {
   province: string;
   city: string;
   area: string;
   detail: string;
 };
 type CurrentKeyModel = {
+  name: BaseModel<string>;
   address: BaseModel<AddressValue>;
 };
 
 const currentKeyModel: CurrentKeyModel = {
+  name: {
+    errorText: '不能为空',
+    validate(value) {
+      if(!value) {
+        this.errorText = '不能为空!';
+        return false;
+      }
+      if(value.length < 2) {
+        this.errorText = '不能少于两个字!';
+        return false;
+      }
+      return true;
+    }
+  },
   address: {
     errorText: '请填写完整的地址',
     validate(value) {
       const { province, city, area, detail } = value;
+      if (!province && !city && !area && !detail) {
+        this.errorText = '请填写完整的地址!';
+        return false;
+      }
       if (!province) {
         this.errorText = '省份不能为空!';
         return false;
@@ -116,26 +139,10 @@ const currentKeyModel: CurrentKeyModel = {
 /**
  * 字段校验规则
  */
-export const validateModel = createValidateModel(currentKeyModel, ['phone']);
+export const validateModel = createValidateModel(currentKeyModel, ['phone', 'email']);
 ```
 
 ### 使用自定义 model
-
-> TODO：使用真实例子的代码实现
-
-字段校验之后需要在界面上显示，一些简单数据可参考：
-
-```js
-// 错误信息
-errorTextMap = { address: '', phone: '', email: '' };
-
-// form表单数据
-infoData = {
-  address: { province: '', city: '', area: '', detail: '' },
-  phone: '',
-  email: '',
-};
-```
 
 可以根据要求：
 
@@ -143,41 +150,94 @@ infoData = {
 - 或者 `onSubmit` 提交的时候触发（校验所有字段）
 
 ```ts
-// 校验字段
-function validateParam(validateKeys: string[]) {
-  let isPass = true;
-  validateKeys.forEach((key) => {
-    const value = infoData[key];
-    const validator = validateModel[key];
-    // 特殊的校验规则
-    if (validator) {
-      const result = validator.validate(value);
-      errorTextMap[key] = result ? '' : validator.errorText;
-      if (!result) isPass = false;
-    }
-    // 校验非空
-    else if (value === '') {
-      errorTextMap[key] = '不能为空';
-      isPass = false;
-    } else {
-      errorTextMap[key] = '';
-    }
+
+import { computed, nextTick, reactive } from 'vue';
+import { AddressValue, validateModel } from './useValidateModel';
+
+enum RadioType { ADDR = 1, ELEC = 2 };
+type BaseKey = 'radioType';
+type ValidateKey = 'name' | 'phone' | 'email' | 'address';
+
+/**
+ * formData的数据处理
+ * @returns 
+ */
+export function useFormData() {
+  const errorTextMap = reactive<Record<ValidateKey, string>>({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
   });
-  return isPass;
-}
+  const infoData = reactive({
+    radioType: RadioType.ADDR,
+    name: '',
+    phone: '',
+    email: '',
+    address: { province: '', city: '',  area: '', detail: '' }
+  });
 
-// 单个变化
-function onChange(key: string, value: string) {
-  infoData[key] = value;
-  validateParam([key]);
-}
+  // 需要校验的字段
+  const validateKeys = computed<ValidateKey[]>(() => {
+    if (infoData.radioType === RadioType.ADDR) {
+      return ['name', 'phone', 'address'];
+    }
+    return ['name', 'phone', 'email'];
+  });
 
-// 点击提交
-function onSubmit() {
-  const validateKeys = ['phone', 'email', 'address'];
-  const isPass = validateParam(validateKeys);
-  if (!isPass) return;
-  // ...
+  // 需要提交的字段
+  const submitKeys = computed<Array<BaseKey | ValidateKey>>(() => {
+    return [...validateKeys.value, 'radioType'];
+  });
+
+  // 校验字段
+  function validateParam(_validateKeys: Array<ValidateKey>) {
+    let isPass = true;
+    _validateKeys.forEach((key) => {
+      const value = infoData[key];
+      const validator = validateModel[key];
+      // 特殊的校验规则
+      if (validator) {
+        // 因为不是直接调用某个字段的方法，所以需要as
+        const result = validator.validate(value as never);
+        errorTextMap[key] = result ? '' : validator.errorText;
+        if (!result) isPass = false;
+      }
+      // 校验非空
+      else if (value === '') {
+        errorTextMap[key] = '不能为空';
+        isPass = false;
+      } else {
+        errorTextMap[key] = '';
+      }
+    });
+    return isPass;
+  }
+
+  function onChange(key: Exclude<ValidateKey, 'address'>, event: Event & { target: HTMLInputElement }) {
+    infoData[key] = event.target.value;
+    nextTick(() => validateParam([key]));
+  }
+  
+  function onAddressChange(key: keyof AddressValue, event: Event & { target: HTMLInputElement }) {
+    infoData.address[key] = event.target.value;
+    nextTick(() => validateParam(['address']));
+  }
+
+  function onSubmit() {
+    const isPass = validateParam(validateKeys.value);
+    if (!isPass) return;
+    console.log(submitKeys.value);
+  }
+
+  return {
+    RadioType,
+    errorTextMap,
+    infoData,
+    onChange,
+    onAddressChange,
+    onSubmit,
+  }
 }
 ```
 
@@ -234,30 +294,11 @@ export function createValidateModel<
 }
 ```
 
-### 工具方法
+### 内置的字段与校验规则
 
-```ts
-// src/utils
-export const emailReg = /^\w+([a-z0-9A-Z-+._])*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;
+在 `createValidateModel` 方法的第二那个参数传入即可，
 
-export const phoneReg = /^[1][2,3,4,5,6,7,8,9][0-9]{9}$/;
-
-// 邮箱验证
-export function checkEmail(val) {
-  return emailReg.test(val);
-}
-
-// 手机号码验证
-export function checkPhone(val) {
-  return phoneReg.test(val);
-}
-```
-
-### 内置的字段校验
-
-前面已经说了一部分了，这里全部的都说一下
-
-> 在 `createValidateModel` 方法的第二那个参数传入即可
+> **注意:** 自定义的字段与内置的字段一样的话会使用自定义的字段规则
 
 字段列表：
 
@@ -298,4 +339,23 @@ export const baseKeyModel: BaseKeyModel = {
     },
   },
 };
+```
+
+### 工具方法
+
+```ts
+// src/utils
+export const emailReg = /^\w+([a-z0-9A-Z-+._])*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;
+
+export const phoneReg = /^[1][2,3,4,5,6,7,8,9][0-9]{9}$/;
+
+// 邮箱验证
+export function checkEmail(val) {
+  return emailReg.test(val);
+}
+
+// 手机号码验证
+export function checkPhone(val) {
+  return phoneReg.test(val);
+}
 ```
