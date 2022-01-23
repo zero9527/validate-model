@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "main": "dist/validate-model.umd.js",
   "module": "dist/validate-model.esm.js",
-  "typings": "typings/index.d.ts",
+  "min": "dist/validate-model.min.js",
+  "typings": "dist/typings/index.d.ts",
   "description": "validate for key/value data",
   "repository": {
     "url": "https://github.com/zero9527/validate-model"
@@ -20,6 +21,7 @@
     "@rollup/plugin-node-resolve": "13.1.3",
     "rollup": "2.63.0",
     "rollup-plugin-dts": "^4.1.0",
+    "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.30.0",
     "tslib": "^2.1.0",
     "typescript": "^4.2.3"
