@@ -1,4 +1,4 @@
-import { BaseModel, createValidateModel } from '@zr/validate-model';
+import { baseKeyModel, BaseModel, createValidateModel } from '@zr/validate-model';
 
 export type AddressValue = {
   province: string;
@@ -11,24 +11,31 @@ type CurrentKeyModel = {
   address: BaseModel<AddressValue>;
 };
 
-const currentKeyModel: CurrentKeyModel = {
+const currentKeyModel: CurrentKeyModel & Pick<typeof baseKeyModel, 'phone'> = {
   name: {
     errorText: '不能为空',
+    required: true,
     validate(value) {
-      if(!value) {
+      if (!this.required && !value) return true;
+      if (this.required && !value) {
         this.errorText = '不能为空!';
         return false;
       }
-      if(value.length < 2) {
+      if (value.length < 2) {
         this.errorText = '不能少于两个字!';
         return false;
       }
       return true;
     }
   },
+  phone: {
+    ...baseKeyModel.phone,
+    required: true,
+  },
   address: {
     errorText: '请填写完整的地址',
     validate(value) {
+      if (!this.required && !value) return true;
       const { province, city, area, detail } = value;
       if (!province && !city && !area && !detail) {
         this.errorText = '请填写完整的地址!';
